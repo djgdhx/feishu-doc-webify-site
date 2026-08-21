@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2026 移远通信模块（重排版）</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <main class="shell">
+    <aside class="sidebar">
+      <p class="brand">Feishu Doc Webify</p>
+      <ul class="toc">
+<li><a href="#section-1">一、项目背景与硬件</a></li>
+<li><a href="#1-1">1.1 项目目标</a></li>
+<li><a href="#1-2">1.2 硬件与设备现状</a></li>
+<li><a href="#1-3">1.3 官方资料入口</a></li>
+<li><a href="#1-4">1.4 驱动下载与安装</a></li>
+<li><a href="#1-5">1.5 端口识别与供电</a></li>
+<li><a href="#eg25-g">二、两枚 EG25-G 固件对比</a></li>
+<li><a href="#2-1">2.1 两台设备参数总表</a></li>
+<li><a href="#2-2">2.2 固件版本对比</a></li>
+<li><a href="#2-3">2.3 关键结论</a></li>
+<li><a href="#section-11">三、电话与音频链路原理</a></li>
+<li><a href="#3-1-usb-audio-class-uac">3.1 USB Audio Class（UAC）</a></li>
+<li><a href="#3-2">3.2 实际数据流</a></li>
+<li><a href="#3-3-linux-alsa-asterisk-sip">3.3 Linux ALSA / Asterisk / SIP</a></li>
+<li><a href="#3-4">3.4 能拨、能接、能挂，但听不见</a></li>
+<li><a href="#3-5-uac">3.5 UAC 打开以后会发生什么</a></li>
+<li><a href="#3-6">3.6 容易误解的地方：必须做音频桥接</a></li>
+<li><a href="#3-7">3.7 最直观的使用方式</a></li>
+<li><a href="#3-8-linux">3.8 为什么最终推荐 Linux</a></li>
+<li><a href="#windows">四、Windows 快速验证操作</a></li>
+<li><a href="#4-1-at-com">4.1 先找 AT COM 口</a></li>
+<li><a href="#4-2-at">4.2 AT 命令速查</a></li>
+<li><a href="#4-3-sscom">4.3 SSCOM 配置</a></li>
+<li><a href="#4-4">4.4 首次上电会自动做什么</a></li>
+<li><a href="#4-5">4.5 供电注意事项</a></li>
+<li><a href="#4-6-wsl2-linux">4.6 WSL2 与原生 Linux</a></li>
+<li><a href="#section-27">五、实测验证结果（测试报告）</a></li>
+<li><a href="#5-1">5.1 测试对象与最终结论</a></li>
+<li><a href="#5-2">5.2 整条实际验证路径</a></li>
+<li><a href="#5-3-at">5.3 已实测支持的核心 AT 命令</a></li>
+<li><a href="#5-4">5.4 本固件不支持 / 不能这样用的命令</a></li>
+<li><a href="#section-32">六、后续开发方案</a></li>
+<li><a href="#6-1">6.1 后续开发目标</a></li>
+<li><a href="#6-2">6.2 下一阶段开发路线</a></li>
+<li><a href="#6-3-web-ui">6.3 第一版 Web UI 应该长这样</a></li>
+<li><a href="#6-4-at">6.4 后端真正要封装的 AT 功能</a></li>
+<li><a href="#6-5">6.5 电话状态机一定要做</a></li>
+<li><a href="#6-6">6.6 软件架构建议</a></li>
+<li><a href="#6-7">6.7 音频的两种第一版</a></li>
+<li><a href="#6-8-4">6.8 下一步先做 4 个模块</a></li>
+</ul>
+    </aside>
+    <section class="content">
+      <header class="hero">
+        <p class="eyebrow">Feishu Document</p>
+        <h1>2026 移远通信模块（重排版）</h1>
+      </header>
+      <article class="doc-body"><h1 id="section-1">一、项目背景与硬件</h1>
+<h2 id="1-1">1.1 项目目标</h2>
+<ul>
+<li>做一个 eSIM 网关：电话 + SMS + SIP + Web 管理。</li>
+<li>核心硬件为移远 EG25-G 模块。</li>
+</ul>
+<h2 id="1-2">1.2 硬件与设备现状</h2>
+<table><thead><tr><th>排名</th><th>模块</th><th>原因</th></tr></thead><tbody><tr><td>🥇</td><td>EG25-G</td><td>最成熟，GitHub最多，VoLTE/UAC资料最多</td></tr><tr><td>🥈</td><td>SRM825N</td><td>最好的5G升级方向，官方UAC</td></tr><tr><td>🥉</td><td>RG500U</td><td>移远5G生态强，但语音还需验证</td></tr><tr><td>4</td><td>FM160</td><td>硬件不错，社区弱</td></tr><tr><td>5</td><td>RG255AA</td><td>未来方向，现在太新</td></tr></tbody></table>
+<table><thead><tr><th>型号</th><th>品牌</th><th>发布时间</th><th>网络</th><th>语音方式</th><th>UAC</th><th>社区生态</th><th>二手价格</th><th>推荐</th></tr></thead><tbody><tr><td>EG25-G</td><td>移远 Quectel</td><td>2018</td><td>LTE Cat4</td><td>VoLTE</td><td>✅ 已验证</td><td>⭐⭐⭐⭐⭐ 最大</td><td>¥80-300</td><td>⭐⭐⭐⭐⭐</td></tr><tr><td>EC25</td><td>移远 Quectel</td><td>2017</td><td>LTE Cat4</td><td>VoLTE</td><td>✅ 已验证</td><td>⭐⭐⭐⭐⭐</td><td>¥50-200</td><td>⭐⭐⭐⭐</td></tr><tr><td>SRM825N</td><td>美格 MeiG</td><td>2022</td><td>5G R16 X62</td><td>VoLTE/VoNR</td><td>✅ 官方支持</td><td>⭐⭐⭐</td><td>¥400-600</td><td>⭐⭐⭐⭐</td></tr><tr><td>SRM815N</td><td>美格 MeiG</td><td>2022</td><td>5G R16 X62</td><td>VoLTE/VoNR</td><td>⚠️需确认</td><td>⭐⭐⭐</td><td>¥150-300</td><td>⭐⭐⭐</td></tr><tr><td>RG500U</td><td>移远 Quectel</td><td>2020</td><td>5G X55</td><td>VoLTE/VoNR</td><td>⚠️固件相关</td><td>⭐⭐⭐⭐</td><td>¥150-300</td><td>⭐⭐⭐</td></tr><tr><td>RG520F</td><td>移远 Quectel</td><td>2021</td><td>5G X62</td><td>VoLTE/VoNR</td><td>⚠️固件相关</td><td>⭐⭐⭐</td><td>¥300-500</td><td>⭐⭐⭐</td></tr><tr><td>FM160</td><td>广和通 Fibocom</td><td>2022</td><td>5G X62</td><td>VoLTE/VoNR</td><td>⚠️需确认</td><td>⭐⭐⭐</td><td>¥300-500</td><td>⭐⭐⭐</td></tr><tr><td>RG255AA</td><td>移远 Quectel</td><td>2024</td><td>5G RedCap</td><td>VoLTE/VoNR</td><td>新</td><td>⭐⭐</td><td>少</td><td>⭐⭐⭐</td></tr></tbody></table>
+<ul>
+<li>两枚 EG25-G 的 USB 设备 ID 均为 <code>2c7c:0125</code>。</li>
+<li>设备插在 iStoreOS 路由器（192.168.1.45，内核 6.6.127）上，由 VoHive 统一管理。</li>
+<li>完整固件以 <code>AT+QGMR</code> 为准，<code>ATI</code> 只返回基础版本。</li>
+</ul>
+<h2 id="1-3">1.3 官方资料入口</h2>
+<ul>
+<li>官网：<a href="https://www.quectel.com.cn/product/ec25">https://www.quectel.com.cn/product/ec25</a></li>
+<li>官方技术论坛：<a href="https://forumschinese.quectel.com/t/topic/9612/2">https://forumschinese.quectel.com/t/topic/9612/2</a></li>
+<li>相关项目：<a href="https://gitea.osmocom.org/sim-card/-/projects">https://gitea.osmocom.org/sim-card/-/projects</a></li>
+<li>EG25-G 产品页：<a href="https://www.quectel.com/product/lte-eg25-g/?utm_source=chatgpt.com">https://www.quectel.com/product/lte-eg25-g/?utm_source=chatgpt.com</a></li>
+</ul>
+<p><strong>官网产品图</strong></p>
+<p>!<a href="https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/authcode/?code=YjU0MDc4NjZlNTcwODEwMjQ5ZWY0NzdjNWIyODFjNjRfN2JhN2I0ZWNmZmM1ZmY1YTk2Njk4MGU3YTFhODA1OTNfSUQ6NzY3NDMwNDE5OTA5NzY2Njg2MF8xNzg3Mjc4MDkwOjE3ODcyODE2OTBfVjM">官网产品图</a></p>
+<p>!<a href="https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/authcode/?code=MjU3MzRlZDgxYzk3YzNiMDhiZGIwNTJjODllYzU1NmFfOWRkZmU3OTM1ZGM0ZTU2ZWY5ZGQzZGFkY2I4ZWIyYzlfSUQ6NzY3NDMwNDIwMjQxMTExNzg2N18xNzg3Mjc4MDkwOjE3ODcyODE2OTBfVjM">EC25 产品介绍页</a></p>
+<h2 id="1-4">1.4 驱动下载与安装</h2>
+<ul>
+<li>驱动下载地址：<a href="https://cnquectel-my.sharepoint.com/personal/asean-fae_quectel_com/_layouts/15/onedrive.aspx?id=/personal/asean-fae_quectel_com/Documents/Firdaus/Driver&amp;ga=1">https://cnquectel-my.sharepoint.com/personal/asean-fae_quectel_com/\_layouts/15/onedrive.aspx?id=%2Fpersonal%2Fasean%2Dfae%5Fquectel%5Fcom%2FDocuments%2FFirdaus%2FDriver&amp;ga=1</a></li>
+<li>推荐安装：<code>Quectel_Windows_USB_Driver(Q)_NDIS_V2.8_EN</code>，约 9.92 MB。</li>
+<li>官方入口：Quectel EG25-G 产品页 → Software / Drivers → 对应驱动。</li>
+<li>也使用过：<code>Quectel_LTE&amp;5G_Windows_USB_Driver</code>。</li>
+</ul>
+<p><strong>固件下载</strong></p>
+<p>!<a href="https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/authcode/?code=MGJkOTE2ZDBhNDIzZDZjMjA3ZmIwMGVkMWRmZGY5MTNfMGYwNGE5YTljNWYzNjQ4NTdhNjZlMGQwYzlhNWMxN2FfSUQ6NzY3NDMwNDIwMDYzMjc4MjAzNV8xNzg3Mjc4MDkwOjE3ODcyODE2OTBfVjM">固件下载</a></p>
+<p><strong>驱动下载</strong></p>
+<p>!<a href="https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/authcode/?code=MzI5OTRiNWRiYjg5NDAxY2RmOGM2MjIzOWM2ZmQ0ODJfY2UzNWRkYzkxMTFjZGYxYTAzNDU4ZTA4YmRmYTYwY2RfSUQ6NzY3NDMwNDIwMzUxMDA3NDU4Nl8xNzg3Mjc4MDkwOjE3ODcyODE2OTBfVjM">驱动下载</a></p>
+<p>!<a href="https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/authcode/?code=OWE2MGViMmQ3YmRhMGVmMTBkNjlhZWUzMDk2ZmRiYmNfMzM3OWRkZGFmMWMwODhhYzc3ODVhYTI3Y2IxNzRiYThfSUQ6NzY3NDMwNDIwMTU4MDc2MDI1Ml8xNzg3Mjc4MDkwOjE3ODcyODE2OTBfVjM">驱动下载页面</a></p>
+<h2 id="1-5">1.5 端口识别与供电</h2>
+<table><thead><tr><th>Windows 设备</th><th>用途</th></tr></thead><tbody><tr><td>Quectel USB AT Port (COMx)</td><td>最重要，用来发 AT 命令</td></tr><tr><td>Quectel USB DM Port</td><td>调试/刷机</td></tr><tr><td>Quectel USB NMEA Port</td><td>GPS/GNSS</td></tr><tr><td>Quectel USB Modem / NDIS</td><td>数据上网</td></tr><tr><td>USB Audio Device</td><td>只有 UAC 开启后才可能出现</td></tr></tbody></table>
+<table><thead><tr><th>阶段</th><th>发生什么</th></tr></thead><tbody><tr><td>USB 插电脑</td><td>电脑给转接板/模块供电，具体是否完全由 USB 供电要看你的转接板设计</td></tr><tr><td>模块上电</td><td>EG25-G 自己启动内部系统</td></tr><tr><td>读取 SIM</td><td>模块自动检测 SIM、读取 IMSI、运营商信息等</td></tr><tr><td>搜索网络</td><td>自动扫描可用运营商和频段</td></tr><tr><td>注册网络</td><td>条件满足后自动注册 4G/LTE 网络</td></tr><tr><td>USB 枚举</td><td>Windows 识别出 AT Port、DM Port、NMEA、网卡等接口</td></tr><tr><td>之后你才能控制</td><td>通过 AT 命令查询状态、发短信、拨号等</td></tr></tbody></table>
+<table><thead><tr><th>正常设备</th><th>用途</th></tr></thead><tbody><tr><td>Quectel USB AT Port (COMx)</td><td>SSCOM 就连这个</td></tr><tr><td>Quectel USB DM Port (COMx)</td><td>调试/升级</td></tr><tr><td>Quectel USB NMEA Port (COMx)</td><td>GNSS</td></tr><tr><td>Quectel 网络设备</td><td>蜂窝数据</td></tr></tbody></table>
+<ul>
+<li>正常应识别：<code>Quectel USB AT Port</code>、<code>Quectel USB DM Port</code>、<code>Quectel USB NMEA Port</code>。</li>
+<li>出现“未知设备”或黄色感叹号时，安装 Windows USB 驱动后重新拔插。</li>
+<li>Windows 7 / 8 / 8.1 / 10 / 11 均支持。</li>
+<li>有些转接板只靠 USB 5V 供电，有些带 DC 电源口或独立供电接口。</li>
+<li>供电不稳可能导致：模块反复重启、网络注册不稳定、拨号掉线、USB 设备突然消失。</li>
+</ul>
+<p><strong>端口显示示例</strong></p>
+<p>!<a href="https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/authcode/?code=NzMwYjUyMDVlYzk4NzBlOTIwZDViZTNlY2MyNTY3NzFfYjhjYTFlZWFkMzlhZmJiNDBhOTVhMzFmZTVkMTk2ZDhfSUQ6NzY3NDMwNDIwMzMzODEwODIwNF8xNzg3Mjc4MDkwOjE3ODcyODE2OTBfVjM">端口显示 1</a></p>
+<p>!<a href="https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/authcode/?code=ZDk3YzM2YzljMzVjZmExY2I0NDAxMDY3MzcyOTJlMmZfYzA0ZjE2YTZlYzk5ODY5NmQ0MzQ5ZTNjZGM2MTZlZGFfSUQ6NzY3NDMwNDIwNDk5NDg0MTg4OV8xNzg3Mjc4MDkwOjE3ODcyODE2OTBfVjM">端口显示 2</a></p>
+<p>!<a href="https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/authcode/?code=ZDE2MTNkMzA5NTUzNzk5NDJmZDA2NTYwMmVlZmI0ZGRfMjdlYzkyMTFkYWEzYmViYjRhZDcwYzFmNzg5OGViMDZfSUQ6NzY3NDMwNDIwNTYyMzkzODI2Ml8xNzg3Mjc4MDkwOjE3ODcyODE2OTBfVjM">端口显示 3</a></p>
+<p>!<a href="https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/authcode/?code=Y2FjYzljMzEwZGIyOWY4YjI1ZjA1NjhhZWMxYzg1N2FfNTBkNDhhOTFhNzFkMzM3OTUzYTU5NWY2ZDZjNmYwZmNfSUQ6NzY3NDMwNDIwNjgzMTg4MTQ1MV8xNzg3Mjc4MDkwOjE3ODcyODE2OTBfVjM">端口显示 4</a></p>
+<p>!<a href="https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/authcode/?code=ZTc1MTA4NWM1YWY4ZGRjNzlkYjQwZGM0ZDY2MzdlMDlfZmY1YzFlNmE0MzkwOGU2YWMyZDE5YjQ1YmU1ZDUyMWFfSUQ6NzY3NDMwNDIwNDU5NjUzMDM2Ml8xNzg3Mjc4MDkwOjE3ODcyODE2OTBfVjM">端口显示 5</a></p>
+<h1 id="eg25-g">二、两枚 EG25-G 固件对比</h1>
+<h2 id="2-1">2.1 两台设备参数总表</h2>
+<table><thead><tr><th>参数项</th><th>E25-01</th><th>E25-02</th></tr></thead><tbody><tr><td>品牌型号</td><td>Quectel EG25-G</td><td>Quectel EG25-G</td></tr><tr><td>USB 设备 ID</td><td>2c7c:0125</td><td>2c7c:0125</td></tr><tr><td>通信串口</td><td>/dev/ttyUSB2</td><td>/dev/ttyUSB6</td></tr><tr><td>IMEI</td><td>860195050918744</td><td>860195056995662</td></tr><tr><td>ICCID</td><td>89441600001002049239</td><td>8944305263594839002</td></tr><tr><td>原生 SIM 运营商</td><td>Lebara</td><td>CMLink</td></tr><tr><td>MCC / MNC</td><td>204 / 04</td><td>234 / 33</td></tr><tr><td>ATI 基础版本</td><td>EG25GGBR07A08M2G</td><td>EG25GGBR07A08M2G</td></tr><tr><td>完整固件（AT+QGMR）</td><td>EG25GGBR07A08M2G_30.200.30.200</td><td>EG25GGBR07A08M2G_01.002.01.002</td></tr></tbody></table>
+<h2 id="2-2">2.2 固件版本对比</h2>
+<table><thead><tr><th>对比项</th><th>E25-01（新）</th><th>E25-02（老）</th></tr></thead><tbody><tr><td>完整版本号</td><td>EG25GGBR07A08M2G_30.200.30.200</td><td>EG25GGBR07A08M2G_01.002.01.002</td></tr><tr><td>底层 Revision</td><td>EG25GGBR07A08M2G（V07 / Qualcomm）</td><td>EG25GGBR07A08M2G（V07 / Qualcomm）</td></tr><tr><td>版本年代</td><td>较新</td><td>2020-06-13</td></tr><tr><td>官方状态</td><td>现行基线</td><td>End-of-Life（已停产维护）</td></tr><tr><td>可否降级</td><td>不可降级到本版之前的版本</td><td>可升到 30.200.30.200 一代，升后不可回退</td></tr><tr><td>普通短信 SMS</td><td>支持</td><td>支持</td></tr><tr><td>SIM 卡 OTA 短信</td><td>被报告收不到、不投递 UICC</td><td>同属模块共性限制</td></tr><tr><td>eSIM / SM-DP+ profile 下载</td><td>模块无此 AT 指令，靠 SIM 卡 + 主机 LPA</td><td>与新版一致，不因固件而缺失</td></tr><tr><td>SIM 注册 / 签约</td><td>网络后台 + SIM 卡侧，与固件无关</td><td>与固件无关</td></tr></tbody></table>
+<h2 id="2-3">2.3 关键结论</h2>
+<ul>
+<li>两枚是同一代模块的新旧两版固件，底层均为 EG25GGBR07A08M2G（V07 / Qualcomm）。</li>
+<li>eSIM / SM-DP+ / SIM 空中注册不由这枚模块固件决定，而是靠 eSIM 卡本身 + 主机侧 LPA 完成。</li>
+<li>E25-01（30.200.30.200）不可降级，不要回退。</li>
+<li>E25-02（01.002.01.002）已 End-of-Life，需要维护就升到 30.200.30.200，升后不能回退。</li>
+</ul>
+<h1 id="section-11">三、电话与音频链路原理</h1>
+<h2 id="3-1-usb-audio-class-uac">3.1 USB Audio Class（UAC）</h2>
+<table><thead><tr><th>东西</th><th>Windows 里看到什么</th><th>用途</th></tr></thead><tbody><tr><td>EG25-G AT 接口</td><td>COM3 / COM4 / COM5…</td><td>拨号、接听、挂断</td></tr><tr><td>EG25-G UAC</td><td>Quectel USB Audio / USB Audio Device</td><td>电话声音</td></tr><tr><td>电脑麦克风</td><td>Microphone</td><td>你讲话</td></tr><tr><td>电脑耳机/音箱</td><td>Speakers / Headphones</td><td>你听对方</td></tr></tbody></table>
+<ul>
+<li>EG25-G 开启 UAC 后，Linux / Windows 会把它识别为一个 USB 音频设备。</li>
+<li>可以理解为：EG25-G 是“手机本体”，USB UAC 是“数字耳机线”。</li>
+<li>对方声音：运营商 → EG25-G → USB → 系统。</li>
+<li>你的声音：系统 → USB → EG25-G → 运营商。</li>
+</ul>
+<h2 id="3-2">3.2 实际数据流</h2>
+<table><thead><tr><th>方向</th><th>流程</th></tr></thead><tbody><tr><td>对方说话 → 你听到</td><td>手机网络 → EG25-G → UAC → ALSA → Asterisk → SIP App</td></tr><tr><td>你讲话 → 对方听到</td><td>SIP App → Asterisk → ALSA → UAC → EG25-G → 手机网络</td></tr></tbody></table>
+<pre><code class="language-text">SIM 卡
+  ↓
+EG25-G 模块（手机本体）
+  ↓
+UAC 音频
+  ↓
+Linux ALSA
+  ↓
+Asterisk
+  ↓
+SIP 电话</code></pre>
+<h2 id="3-3-linux-alsa-asterisk-sip">3.3 Linux ALSA / Asterisk / SIP</h2>
+<table><thead><tr><th>名称</th><th>全称</th><th>最简单理解</th><th>在你的项目里的作用</th></tr></thead><tbody><tr><td>EG25-G</td><td>Quectel LTE Modem</td><td>没有屏幕的手机</td><td>插 SIM 卡，连接运营商，负责打电话</td></tr><tr><td>AT Command</td><td>Attention Command</td><td>控制手机的指令</td><td>告诉 EG25-G：拨号、接听、挂断</td></tr><tr><td>UAC</td><td>USB Audio Class</td><td>USB 声卡</td><td>把通话声音从 EG25-G 传到 Linux</td></tr><tr><td>ALSA</td><td>Advanced Linux Sound Architecture</td><td>Linux 声音管理系统</td><td>让 Linux 识别和处理 UAC 音频</td></tr><tr><td>Asterisk</td><td>开源电话交换机</td><td>软件电话总机</td><td>管理电话、转接、连接 SIP</td></tr><tr><td>SIP</td><td>Session Initiation Protocol</td><td>网络电话协议</td><td>让手机 App 通过网络接入电话</td></tr></tbody></table>
+<ul>
+<li>Linux ALSA：Linux 管理声音设备的系统。</li>
+<li>Asterisk：Linux 上的电话交换机软件，负责呼叫转接、录音、SIP 账号、电话规则。</li>
+<li>SIP：网络电话协议；常见客户端有 Zoiper、Linphone、Acrobits。</li>
+<li>目标链路：SIM → EG25-G → UAC → Linux ALSA → Asterisk → SIP 电话。</li>
+</ul>
+<h2 id="3-4">3.4 能拨、能接、能挂，但听不见</h2>
+<table><thead><tr><th>条件</th><th>是否必须</th></tr></thead><tbody><tr><td>SIM 套餐支持语音</td><td>✅</td></tr><tr><td>运营商允许该 SIM 使用 VoLTE/语音</td><td>✅</td></tr><tr><td>模块注册到 IMS/VoLTE 或可用语音网络</td><td>✅</td></tr><tr><td>固件支持语音呼叫</td><td>✅</td></tr><tr><td>想真正听说话，还要 UAC/PCM</td><td>✅</td></tr></tbody></table>
+<ul>
+<li>只用 <code>ATD / ATA / ATH</code> 控制电话时，电话确实接通，但没有音频链路时听不见、也说不了话。</li>
+<li>需要再接 UAC / PCM 音频链路，才能实现双向语音。</li>
+<li>开发顺序建议：先做电话控制 UI，再接入 UAC 音频。</li>
+</ul>
+<h2 id="3-5-uac">3.5 UAC 打开以后会发生什么</h2>
+<table><thead><tr><th>USB功能</th><th>相当于</th></tr></thead><tbody><tr><td>COM AT Port</td><td>控制线</td></tr><tr><td>QMI/网络接口</td><td>网卡</td></tr><tr><td>UAC Audio</td><td>声卡</td></tr></tbody></table>
+<ul>
+<li>Windows 会多识别一个类似 <code>Quectel USB Audio</code> 的设备。</li>
+<li>进入“设置 → 系统 → 声音”，可以看到新的音频输入 / 输出设备。</li>
+<li>EG25-G 在同一个 USB 口上同时提供多个接口。</li>
+</ul>
+<h2 id="3-6">3.6 容易误解的地方：必须做音频桥接</h2>
+<ul>
+<li>电话接通后，Windows 不会自动把电脑麦克风送给 EG25-G。</li>
+<li>需要音频桥接：电脑麦克风 → 音频桥接软件 → EG25-G UAC；反方向同理。</li>
+<li>实验阶段可用 VoiceMeeter、Virtual Audio Cable、FFmpeg 或自己写小程序。</li>
+<li>做正式产品时，应由程序自动完成桥接。</li>
+</ul>
+<h2 id="3-7">3.7 最直观的使用方式</h2>
+<table><thead><tr><th>操作</th><th>怎么做</th></tr></thead><tbody><tr><td>拨号</td><td>在 AT 串口执行 ATD号码;</td></tr><tr><td>接电话</td><td>执行 ATA</td></tr><tr><td>挂电话</td><td>执行 ATH</td></tr><tr><td>听对方</td><td>EG25 UAC → Windows → 耳机</td></tr><tr><td>对方听你</td><td>耳机麦克风 → Windows → EG25 UAC</td></tr></tbody></table>
+<ul>
+<li>Windows PC + EG25-G + USB 转接板 + 带麦克风耳机。</li>
+<li>人只需戴电脑耳麦讲话，和正常电脑语音聊天差不多。</li>
+<li>完全不用跑到模块旁边对着模块说话。</li>
+</ul>
+<h2 id="3-8-linux">3.8 为什么最终推荐 Linux</h2>
+<table><thead><tr><th>Windows实验</th><th>Linux成品</th></tr></thead><tbody><tr><td>串口工具手动 AT</td><td>程序自动控制 AT</td></tr><tr><td>VoiceMeeter 搬声音</td><td>ALSA 自动处理声音</td></tr><tr><td>人坐电脑前接电话</td><td>Asterisk 自动接入</td></tr><tr><td>本机耳麦</td><td>SIP / WebRTC 远程</td></tr><tr><td>适合测试</td><td>适合做你的盒子</td></tr></tbody></table>
+<ul>
+<li>不是因为 Windows 做不到，而是后续要做 VoHive + Web UI + 远程接电话 + SIP，Linux 更方便。</li>
+<li>远程架构：设备放在悉尼，人在上海，手机 App / 浏览器连回 Linux 盒子。</li>
+<li>UAC 只解决“EG25-G ↔ 电脑”这一段声音；人在哪里讲话由后面软件决定。</li>
+</ul>
+<h1 id="windows">四、Windows 快速验证操作</h1>
+<h2 id="4-1-at-com">4.1 先找 AT COM 口</h2>
+<ul>
+<li>打开：设备管理器 → 端口（COM 和 LPT）。</li>
+<li>找到 <code>Quectel USB AT Port (COMx)</code>。</li>
+<li>串口软件可用 PuTTY、MobaXterm、串口助手、SSCOM。</li>
+</ul>
+<h2 id="4-2-at">4.2 AT 命令速查</h2>
+<pre><code class="language-text">AT              # 返回 OK
+ATI             # 基础版本
+AT+QGMR         # 完整固件版本
+AT+CSQ          # 查询信号
+AT+COPS?        # 查询注册运营商
+AT+QNWINFO      # 查询网络与频段
+ATD+614xxxxxxxx;  # 语音拨号
+ATA             # 接听
+ATH             # 挂断</code></pre>
+<h2 id="4-3-sscom">4.3 SSCOM 配置</h2>
+<table><thead><tr><th>软件</th><th>推荐度</th><th>适合你吗</th><th>说明</th></tr></thead><tbody><tr><td>PuTTY</td><td>★★★★★</td><td>✅</td><td>最简单，免费，直接连 COM 口</td></tr><tr><td>MobaXterm</td><td>★★★★★</td><td>✅</td><td>你如果本来就用它，更方便</td></tr><tr><td>SSCOM</td><td>★★★★★</td><td>✅</td><td>国内常用串口调试工具，发 AT 命令特别方便</td></tr><tr><td>XCOM</td><td>★★★★☆</td><td>✅</td><td>也是常见串口工具</td></tr><tr><td>QCOM / QNavigator</td><td>★★★★☆</td><td>✅</td><td>移远自己的调试工具，更专业</td></tr></tbody></table>
+<ul>
+<li>下载地址：<a href="https://soft.3dmgame.com/down/359171.html?utm_source=chatgpt.com">https://soft.3dmgame.com/down/359171.html?utm_source=chatgpt.com</a></li>
+<li>COM 口：Quectel USB AT Port 对应的 COM 号。</li>
+<li>波特率：115200；数据位：8；停止位：1；校验：None。</li>
+<li>发送 <code>AT</code>，正常返回 <code>OK</code>。</li>
+</ul>
+<p><strong>SSCOM 下载页面</strong></p>
+<p>!<a href="https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/authcode/?code=YTU5YzJmZWJhNGFhMzMxNmNiOGVlMmIxNzQ4NWY5MWZfNDI5M2NiMjIzNWQzZmEzNjgxNDliZDVlMTJkYTY4OGNfSUQ6NzY3NDMwNDIyMzg5NDM1OTI5OV8xNzg3Mjc4MDkwOjE3ODcyODE2OTBfVjM">SSCOM 下载页面</a></p>
+<h2 id="4-4">4.4 首次上电会自动做什么</h2>
+<ul>
+<li>电脑负责供电和提供 USB 通道，EG25-G 自己启动、读 SIM、搜网、注册网络。</li>
+<li>上电流程：上电 → 检测 SIM → 搜索网络 → 尝试注册。</li>
+<li><code>AT+CSQ</code> 是问信号；<code>AT+COPS?</code> 是问运营商；<code>AT+QNWINFO</code> 是问网络和频段。</li>
+</ul>
+<h2 id="4-5">4.5 供电注意事项</h2>
+<ul>
+<li>不一定所有转接板都只靠电脑 USB 供电。</li>
+<li>有些板带 DC 电源口、额外 5V 输入或独立供电接口。</li>
+<li>蜂窝模块发射瞬时电流较高，供电不稳会出现重启、掉线、USB 消失等问题。</li>
+<li>只要插 USB 后能稳定启动、能看到 COM 口且不反复断开，说明供电基本够用。</li>
+</ul>
+<h2 id="4-6-wsl2-linux">4.6 WSL2 与原生 Linux</h2>
+<table><thead><tr><th>Windows 11 里的“Linux”</th><th>能不能拿来接 EG25-G</th><th>结论</th></tr></thead><tbody><tr><td>WSL / WSL2</td><td>⚠️ 可以折腾，但 USB 直通麻烦</td><td>不推荐你第一步就用</td></tr><tr><td>Hyper-V 虚拟机里的 Ubuntu</td><td>⚠️ USB 直通也麻烦</td><td>不推荐</td></tr><tr><td>VMware / VirtualBox Ubuntu</td><td>✅ 可做 USB 直通</td><td>可以</td></tr><tr><td>双系统 Ubuntu</td><td>✅ 原生识别 USB</td><td>很适合</td></tr><tr><td>独立 Linux 小主机 / 树莓派</td><td>✅ 最稳定</td><td>最推荐</td></tr></tbody></table>
+<table><thead><tr><th>阶段</th><th>推荐做法</th></tr></thead><tbody><tr><td>先验证模块</td><td>Windows 11 直接用 COM 口发 AT 命令</td></tr><tr><td>真正跑 VoHive</td><td>独立 Linux / 树莓派 / Ubuntu 双系统</td></tr></tbody></table>
+<ul>
+<li>Windows 11 的 Linux 环境能否跑 VoHive，取决于是不是 WSL2。</li>
+<li>WSL2 里 EG25-G 的 COM 口、QMI / wwan0、UAC 声卡默认不会全部直接出现。</li>
+<li>需要 USB passthrough（如 usbipd-win），比直接装 Linux 麻烦。</li>
+<li>建议先 Windows 验证“识别、拨号、接听”，再迁移到原生 Linux 跑 VoHive。</li>
+</ul>
+<h1 id="section-27">五、实测验证结果（测试报告）</h1>
+<h2 id="5-1">5.1 测试对象与最终结论</h2>
+<table><thead><tr><th>项目</th><th>测试方式</th><th>命令/操作</th><th>结果</th><th>最终确认</th></tr></thead><tbody><tr><td>模块识别</td><td>查询固件</td><td>AT+QGMR</td><td>EG25GGBR07A08M2G_01.002.01.002</td><td>模块正常</td></tr><tr><td>SIM状态</td><td>查询SIM</td><td>AT+CPIN?</td><td>READY</td><td>SIM可用</td></tr><tr><td>网络注册</td><td>查询运营商</td><td>AT+COPS?</td><td>CHINA MOBILE</td><td>CMLink UK漫游成功</td></tr><tr><td>LTE网络</td><td>查询网络</td><td>AT+QNWINFO</td><td>TDD LTE / Band39</td><td>4G连接正常</td></tr><tr><td>漫游状态</td><td>LTE注册</td><td>AT+CEREG?</td><td>0,5</td><td>漫游注册成功</td></tr><tr><td>IMS功能</td><td>开启IMS</td><td>AT+QCFG=&quot;ims&quot;,1</td><td>OK</td><td>IMS开启</td></tr><tr><td>IMS配置</td><td>查询APN</td><td>AT+CGDCONT?</td><td>存在ims</td><td>IMS配置正常</td></tr><tr><td>IMS承载</td><td>查询PDP</td><td>AT+CGACT?</td><td>IMS=1</td><td>IMS激活</td></tr><tr><td>语音模式</td><td>查询服务域</td><td>AT+QCFG=&quot;servicedomain&quot;</td><td>2</td><td>支持语音</td></tr><tr><td>USB音频</td><td>查看USB配置</td><td>AT+QCFG=&quot;usbcfg&quot;</td><td>uac=1</td><td>USB Audio开启</td></tr><tr><td>电话音频</td><td>开启音频</td><td>AT+QPCMV=1,2</td><td>OK</td><td>通话音频打开</td></tr><tr><td>拨打电话</td><td>AT拨号</td><td>ATD10086;</td><td>OK</td><td>可以发起呼叫</td></tr><tr><td>通话状态</td><td>查询通话</td><td>AT+CLCC</td><td>显示10086</td><td>电话建立</td></tr><tr><td>音频输入</td><td>电脑讲话</td><td>AC Interface麦克风</td><td>声音条变化</td><td>上行声音正常</td></tr><tr><td>音频输出</td><td>听客服语音</td><td>CMLink菜单声音</td><td>听到语音提示</td><td>下行声音正常</td></tr><tr><td>DTMF</td><td>发送按键</td><td>AT+VTS=2</td><td>OK</td><td>电话按键正常</td></tr><tr><td>挂断电话</td><td>结束通话</td><td>ATH</td><td>OK</td><td>电话控制完整</td></tr></tbody></table>
+<table><thead><tr><th>能力</th><th>是否成功</th><th>证明</th></tr></thead><tbody><tr><td>4G数据</td><td>✅</td><td>LTE注册</td></tr><tr><td>漫游语音</td><td>✅</td><td>CMLink客服通话</td></tr><tr><td>VoLTE链路</td><td>✅</td><td>可以进入语音菜单</td></tr><tr><td>AT控制电话</td><td>✅</td><td>拨号/挂断</td></tr><tr><td>USB UAC音频</td><td>✅</td><td>AC Interface</td></tr><tr><td>麦克风输入</td><td>✅</td><td>Windows音量条变化</td></tr><tr><td>扬声器输出</td><td>✅</td><td>听到客服语音</td></tr><tr><td>DTMF控制</td><td>✅</td><td>AT+VTS成功</td></tr></tbody></table>
+<table><thead><tr><th>层级</th><th>测试内容</th><th>实际命令 / 操作</th><th>实际结果</th><th>真正确认了什么</th></tr></thead><tbody><tr><td>USB</td><td>Windows识别模块</td><td>安装 Quectel USB Driver</td><td>AT COM6、DM COM8、NMEA COM9</td><td>USB驱动和复合设备正常</td></tr><tr><td>AT</td><td>串口通信</td><td>AT</td><td>OK</td><td>Windows可直接控制EG25-G</td></tr><tr><td>固件</td><td>查询版本</td><td>AT+QGMR</td><td>EG25GGBR07A08M2G_01.002.01.002</td><td>确认本次测试固件</td></tr><tr><td>SIM</td><td>查询SIM</td><td>AT+CPIN?</td><td>#NAME?</td><td>SIM已识别且可使用</td></tr><tr><td>驻网</td><td>查询运营商</td><td>AT+COPS?</td><td>CHINA MOBILE, 7</td><td>CMLink UK已漫游到中国移动LTE</td></tr><tr><td>无线网络</td><td>查询制式</td><td>AT+QNWINFO</td><td>TDD LTE / 46000 / BAND 39</td><td>LTE无线链路正常</td></tr><tr><td>注册</td><td>EPS注册</td><td>AT+CEREG?</td><td>0,5</td><td>漫游注册成功</td></tr><tr><td>IMS</td><td>查询IMS</td><td>AT+QCFG=&quot;ims&quot;</td><td>最初0,0，开启后1,1</td><td>固件支持IMS且已开启</td></tr><tr><td>IMS APN</td><td>查看PDP</td><td>AT+CGDCONT?</td><td>CID 2=ims</td><td>模块存在IMS上下文</td></tr><tr><td>IMS承载</td><td>PDP激活</td><td>AT+CGACT?</td><td>CID 2=1</td><td>IMS PDP已经激活</td></tr><tr><td>服务域</td><td>查询业务域</td><td>AT+QCFG=&quot;servicedomain&quot;</td><td>2</td><td>CS+PS配置正常</td></tr><tr><td>UAC能力</td><td>查看固件能力</td><td>AT+QCFG=?</td><td>明确列出 &lt;uac&gt; 参数</td><td>这个固件明确支持UAC</td></tr><tr><td>USB配置</td><td>查询原配置</td><td>AT+QCFG=&quot;usbcfg&quot;</td><td>...,1,1,1,1,1,0,0</td><td>UAC最初处于关闭</td></tr><tr><td>UAC开启</td><td>修改USB配置</td><td>AT+QCFG=&quot;usbcfg&quot;,0x2C7C,0x125,1,1,1,1,1,0,1</td><td>OK</td><td>UAC加入USB复合设备</td></tr><tr><td>Windows音频</td><td>重新插拔USB</td><td>设备管理器</td><td>AC Interface / USB Audio Device</td><td>Windows真正识别了UAC声卡</td></tr><tr><td>PCM音频</td><td>查询能力</td><td>AT+QPCMV=?</td><td>(0,1),(0-2)</td><td>固件支持QPCMV</td></tr><tr><td>PCM音频</td><td>开启</td><td>AT+QPCMV=1,2</td><td>OK</td><td>通话USB音频路径开启</td></tr><tr><td>PCM状态</td><td>查询</td><td>AT+QPCMV?</td><td>1,2</td><td>设置确实生效</td></tr><tr><td>呼叫</td><td>第一次拨中国手机号</td><td>ATD15210131591;</td><td>OK 后 NO CARRIER</td><td>该次呼叫没有建立</td></tr><tr><td>呼叫</td><td>拨10086</td><td>ATD10086;</td><td>OK</td><td>模块开始建立语音呼叫</td></tr><tr><td>呼叫状态</td><td>查询</td><td>AT+CLCC</td><td>+CLCC: 3,0,0,0,0,&quot;10086&quot;...</td><td>10086语音呼叫已处于Active状态</td></tr><tr><td>下行音频</td><td>CMLink IVR讲话</td><td>Windows AC Interface</td><td>能识别“英国卡请按2……”</td><td>远端语音已通过UAC进入Windows</td></tr><tr><td>DTMF</td><td>IVR按键</td><td>AT+VTS=2</td><td>OK</td><td>模块支持通话中DTMF</td></tr><tr><td>挂断</td><td>结束呼叫</td><td>ATH</td><td>后续CLCC中10086消失</td><td>实际呼叫已经结束</td></tr><tr><td>音频模式</td><td>查询</td><td>AT+QAUDMOD?</td><td>0</td><td>当前默认Audio Mode</td></tr><tr><td>Codec</td><td>查询省电</td><td>AT+QCFG=&quot;codec/powsave&quot;</td><td>0</td><td>Codec未处于省电模式</td></tr><tr><td>PCM接口</td><td>查询</td><td>AT+QCFG=&quot;pcmclk&quot;</td><td>0</td><td>当前不是靠外部PCM Clock工作</td></tr></tbody></table>
+<ul>
+<li>测试对象：<code>EG25GGBR07A08M2G_01.002.01.002</code>；SIM：CMLink UK；Windows 11；USB 转接板。</li>
+<li>已确认 Windows 能通过 USB AT 口控制模块。</li>
+<li>模块能读取 SIM，并漫游注册中国移动 LTE。</li>
+<li>IMS 可开启，且存在 IMS PDP。</li>
+<li>能实际拨出 10086 并建立活动语音呼叫。</li>
+<li>固件明确支持 UAC；Windows 成功枚举 AC Interface / USB Audio Device。</li>
+<li>10086 / CMLink IVR 的远端语音已经通过 UAC 进入 Windows。</li>
+<li>DTMF 按键发送成功，通话可以挂断。</li>
+</ul>
+<h2 id="5-2">5.2 整条实际验证路径</h2>
+<table><thead><tr><th>部分</th><th>作用</th><th>对应功能</th></tr></thead><tbody><tr><td>USB AT Port</td><td>控制模块</td><td>拨号、接听、挂断</td></tr><tr><td>USB Audio(UAC)</td><td>传输声音</td><td>麦克风、扬声器</td></tr><tr><td>LTE/IMS</td><td>电话网络</td><td>VoLTE通话</td></tr><tr><td>SIM</td><td>手机号码</td><td>接收/拨打电话</td></tr></tbody></table>
+<ul>
+<li><strong>电话控制：</strong>Windows / 程序 → Quectel USB AT Port → AT 命令 → EG25-G → CMLink / 中国移动 → 电话网络。</li>
+<li><strong>远端声音：</strong>10086 / CMLink IVR → 电话网络 → EG25-G → USB UAC → Microphone (AC Interface) → Windows 应用 / 语音识别。</li>
+<li><strong>本地声音以后应这样走：</strong>PC 真实麦克风 → 音频桥接程序 → Speakers (AC Interface) → USB UAC → EG25-G → 电话网络。</li>
+<li><strong>关键理解：</strong>AC Interface 不是物理耳麦，而是 EG25-G 暴露出来的“电话音频接口”。</li>
+</ul>
+<h2 id="5-3-at">5.3 已实测支持的核心 AT 命令</h2>
+<table><thead><tr><th>分类</th><th>命令</th><th>含义</th><th>本次结果</th></tr></thead><tbody><tr><td>基础</td><td>AT</td><td>测试AT口</td><td>✅ OK</td></tr><tr><td>固件</td><td>AT+QGMR</td><td>查询固件版本</td><td>✅</td></tr><tr><td>SIM</td><td>AT+CPIN?</td><td>查询SIM/PIN状态</td><td>✅ READY</td></tr><tr><td>网络</td><td>AT+COPS?</td><td>当前运营商/制式</td><td>✅</td></tr><tr><td>网络</td><td>AT+QNWINFO</td><td>RAT、PLMN、Band、信道</td><td>✅</td></tr><tr><td>网络</td><td>AT+CEREG?</td><td>LTE/EPS注册状态</td><td>✅ 0,5</td></tr><tr><td>PDP</td><td>AT+CGDCONT?</td><td>查看PDP/APN</td><td>✅ 含ims</td></tr><tr><td>PDP</td><td>AT+CGACT?</td><td>查看PDP激活状态</td><td>✅</td></tr><tr><td>IMS</td><td>AT+QCFG=&quot;ims&quot;</td><td>查询IMS配置</td><td>✅</td></tr><tr><td>IMS</td><td>AT+QCFG=&quot;ims&quot;,1</td><td>开启IMS</td><td>✅</td></tr><tr><td>服务域</td><td>AT+QCFG=&quot;servicedomain&quot;</td><td>查询CS/PS业务域</td><td>✅ 2</td></tr><tr><td>USB</td><td>AT+QCFG=&quot;usbcfg&quot;</td><td>查询USB复合接口</td><td>✅</td></tr><tr><td>USB能力</td><td>AT+QCFG=?</td><td>列出QCFG支持项</td><td>✅ 明确显示&lt;uac&gt;</td></tr><tr><td>UAC</td><td>AT+QCFG=&quot;usbcfg&quot;,0x2C7C,0x125,1,1,1,1,1,0,1</td><td>开启USB Audio接口</td><td>✅</td></tr><tr><td>音频</td><td>AT+QPCMV=?</td><td>查询QPCMV支持范围</td><td>✅</td></tr><tr><td>音频</td><td>AT+QPCMV=1,2</td><td>开启当前固件可用的USB通话音频路径</td><td>✅</td></tr><tr><td>音频</td><td>AT+QPCMV?</td><td>查询QPCMV状态</td><td>✅ 1,2</td></tr><tr><td>呼叫</td><td>ATD号码;</td><td>发起语音呼叫</td><td>✅ 10086成功建立</td></tr><tr><td>呼叫</td><td>AT+CLCC</td><td>查询当前呼叫列表/状态</td><td>✅</td></tr><tr><td>呼叫</td><td>ATH</td><td>挂断</td><td>✅</td></tr><tr><td>DTMF</td><td>AT+VTS=2</td><td>通话中发送数字2</td><td>✅</td></tr><tr><td>音频</td><td>AT+QAUDMOD?</td><td>查询Audio Mode</td><td>✅ 0</td></tr><tr><td>音频</td><td>AT+QCFG=&quot;codec/powsave&quot;</td><td>Codec省电状态</td><td>✅ 0</td></tr><tr><td>音频</td><td>AT+QCFG=&quot;pcmclk&quot;</td><td>PCM Clock配置</td><td>✅ 0</td></tr></tbody></table>
+<h2 id="5-4">5.4 本固件不支持 / 不能这样用的命令</h2>
+<table><thead><tr><th>命令</th><th>实际返回</th><th>结论</th></tr></thead><tbody><tr><td>AT+CIREG?</td><td>ERROR</td><td>本固件没有这个查询命令</td></tr><tr><td>AT+QIMSREG?</td><td>ERROR</td><td>本固件没有这个查询命令</td></tr><tr><td>AT+QCFG=&quot;usbcfg&quot;,?</td><td>ERROR</td><td>不能这样查询USBCFG参数范围</td></tr><tr><td>AT+QPCMV=1,1</td><td>ERROR</td><td>这个组合不可用，本次有效的是1,2</td></tr><tr><td>AT+QAUDCFG?</td><td>ERROR</td><td>本固件不支持该命令</td></tr></tbody></table>
+<h1 id="section-32">六、后续开发方案</h1>
+<h2 id="6-1">6.1 后续开发目标</h2>
+<table><thead><tr><th>结论</th><th>当前确定程度</th></tr></thead><tbody><tr><td>这颗 EG25-G 不是“只能数据/短信”的模块</td><td>已实测确定</td></tr><tr><td>01.002.01.002 固件具备 UAC 功能</td><td>已实测确定</td></tr><tr><td>Windows 可以同时获得 AT COM口 + USB Audio</td><td>已实测确定</td></tr><tr><td>CMLink UK 在当前中国移动漫游环境下能建立实际语音呼叫</td><td>已实测确定</td></tr><tr><td>可以通过 AT 发起真实电话</td><td>已实测确定</td></tr><tr><td>可以查询活动呼叫</td><td>已实测确定</td></tr><tr><td>可以通过 DTMF 控制 IVR</td><td>已实测确定</td></tr><tr><td>远端电话声音能通过 UAC 进入 Windows</td><td>已实测确定</td></tr><tr><td>可以挂断呼叫</td><td>已实测确定</td></tr><tr><td>来电 RING/+CLIP → ATA</td><td>还没实际打进来测试</td></tr><tr><td>Web UI“来电弹窗/接听/拒接”</td><td>底层条件具备，但还没开发</td></tr><tr><td>PC物理麦克风 → UAC → 对方的完整音频桥接</td><td>还需要实际双向人工通话验证</td></tr><tr><td>Linux ALSA</td><td>还没迁移测试</td></tr><tr><td>Asterisk / SIP</td><td>完全还没开始测试</td></tr></tbody></table>
+<ul>
+<li>今天完成的是“EG25-G 电话控制 + UAC 底层能力验证”。</li>
+<li>Web UI、Linux、Asterisk、SIP 尚未全部做完。</li>
+<li>第一版先做“带 Web UI 的 EG25-G 电话机”，不先做 Asterisk / SIP。</li>
+</ul>
+<h2 id="6-2">6.2 下一阶段开发路线</h2>
+<table><thead><tr><th>阶段</th><th>要开发什么</th><th>实现内容</th><th>完成后的效果</th></tr></thead><tbody><tr><td>1. Modem 后端服务</td><td>EG25-G 控制程序</td><td>自动找到 AT 口、保持串口连接、发送 AT、监听 URC</td><td>不再需要 SSCOM</td></tr><tr><td>2. 电话状态机</td><td>Call Manager</td><td>空闲、呼出、振铃、通话、挂断、失败等状态</td><td>后端知道电话现在处于什么状态</td></tr><tr><td>3. Web UI</td><td>电话页面</td><td>数字键盘、号码输入、拨号、接听、拒接、挂断</td><td>浏览器直接控制电话</td></tr><tr><td>4. 来电监听</td><td>Incoming Call</td><td>监听 RING、+CLIP、CLCC</td><td>别人打号码时网页自动弹出来电窗口</td></tr><tr><td>5. UAC 音频服务</td><td>Audio Manager</td><td>Linux ALSA 识别 EG25-G UAC，处理输入/输出</td><td>电话声音可以进入程序</td></tr><tr><td>6. 浏览器语音</td><td>WebRTC Audio</td><td>浏览器麦克风 ↔ Linux ↔ UAC</td><td>直接对着浏览器讲话、听电话</td></tr><tr><td>7. DTMF</td><td>电话键盘</td><td>AT+VTS=1\~9,#,\*</td><td>可以操作10086这种客服菜单</td></tr><tr><td>8. 通话记录</td><td>Call History</td><td>号码、呼入/呼出、开始时间、结束时间、结果</td><td>Web UI 有通话记录</td></tr><tr><td>9. SMS整合</td><td>SMS Manager</td><td>接收、发送、列表、通知</td><td>电话+短信一个后台</td></tr><tr><td>10. 设备状态</td><td>Modem Status</td><td>SIM、运营商、信号、网络、IMS、UAC</td><td>类似 VoHive 的设备管理页</td></tr></tbody></table>
+<h2 id="6-3-web-ui">6.3 第一版 Web UI 应该长这样</h2>
+<table><thead><tr><th>页面区域</th><th>显示/功能</th></tr></thead><tbody><tr><td>顶部状态</td><td>CMLink UK · China Mobile · LTE · Signal -78 dBm · VoLTE Ready</td></tr><tr><td>电话号码</td><td>输入电话号码</td></tr><tr><td>数字键盘</td><td>1 2 3 / 4 5 6 / 7 8 9 / \* 0 #</td></tr><tr><td>主按钮</td><td>拨号</td></tr><tr><td>呼出状态</td><td>正在拨打 152xxxxxxx…</td></tr><tr><td>通话状态</td><td>通话中 00:36</td></tr><tr><td>操作</td><td>静音 / 数字键盘 / 挂断</td></tr><tr><td>来电弹窗</td><td>+44 xxxx 来电 [接听] [拒接]</td></tr><tr><td>通话记录</td><td>时间、号码、呼入/呼出、时长、结果</td></tr></tbody></table>
+<h2 id="6-4-at">6.4 后端真正要封装的 AT 功能</h2>
+<table><thead><tr><th>Web UI动作</th><th>后端动作</th><th>EG25-G 命令/事件</th></tr></thead><tbody><tr><td>拨号</td><td>dial(number)</td><td>ATD号码;</td></tr><tr><td>接听</td><td>answer()</td><td>ATA</td></tr><tr><td>拒接</td><td>reject()</td><td>ATH</td></tr><tr><td>挂断</td><td>hangup()</td><td>ATH</td></tr><tr><td>查询通话</td><td>getCallState()</td><td>AT+CLCC</td></tr><tr><td>来电</td><td>incomingCall</td><td>监听 RING</td></tr><tr><td>获取来电号码</td><td>callerId</td><td>#NAME?</td></tr><tr><td>DTMF</td><td>sendDtmf(&quot;2&quot;)</td><td>AT+VTS=2</td></tr><tr><td>SIM状态</td><td>getSim()</td><td>AT+CPIN?</td></tr><tr><td>运营商</td><td>getOperator()</td><td>AT+COPS?</td></tr><tr><td>网络</td><td>getNetwork()</td><td>AT+QNWINFO</td></tr><tr><td>注册状态</td><td>getRegistration()</td><td>AT+CEREG?</td></tr><tr><td>IMS</td><td>getIMS()</td><td>AT+QCFG=&quot;ims&quot;</td></tr><tr><td>音频状态</td><td>getAudio()</td><td>AT+QPCMV?</td></tr></tbody></table>
+<table><thead><tr><th>Web功能</th><th>AT命令</th><th>作用</th></tr></thead><tbody><tr><td>拨号</td><td>ATD号码;</td><td>呼叫号码</td></tr><tr><td>接听</td><td>ATA</td><td>接听来电</td></tr><tr><td>拒接</td><td>ATH</td><td>拒绝来电</td></tr><tr><td>挂断</td><td>ATH</td><td>结束通话</td></tr><tr><td>查询状态</td><td>AT+CLCC</td><td>当前通话状态</td></tr><tr><td>来电检测</td><td>RING / +CLIP</td><td>弹出来电窗口</td></tr><tr><td>数字键</td><td>AT+VTS=x</td><td>IVR按键</td></tr></tbody></table>
+<h2 id="6-5">6.5 电话状态机一定要做</h2>
+<table><thead><tr><th>状态</th><th>含义</th><th>Web UI</th></tr></thead><tbody><tr><td>IDLE</td><td>没电话</td><td>显示拨号盘</td></tr><tr><td>DIALING</td><td>正在呼出</td><td>“正在拨号…”</td></tr><tr><td>RINGING_OUT</td><td>对方振铃</td><td>“正在响铃…”</td></tr><tr><td>RINGING_IN</td><td>有人打进来</td><td>弹出来电窗口</td></tr><tr><td>ACTIVE</td><td>已接通</td><td>通话计时</td></tr><tr><td>HANGING_UP</td><td>正在挂断</td><td>等待结束</td></tr><tr><td>ENDED</td><td>已结束</td><td>写入通话记录</td></tr><tr><td>FAILED</td><td>呼叫失败</td><td>显示 NO CARRIER 等原因</td></tr></tbody></table>
+<p>不能只是网页点一下就发 <code>ATD</code>，后台必须持续监听 EG25-G，这样来电时即使用户没点任何东西，Web UI 也能立即收到事件。</p>
+<h2 id="6-6">6.6 软件架构建议</h2>
+<table><thead><tr><th>层</th><th>技术</th><th>职责</th></tr></thead><tbody><tr><td>Web UI</td><td>Next.js / React</td><td>电话界面、来电弹窗、拨号盘</td></tr><tr><td>API</td><td>Go REST API</td><td>拨号、接听、挂断、状态</td></tr><tr><td>实时通信</td><td>WebSocket</td><td>来电、挂断、状态实时推送</td></tr><tr><td>Modem Manager</td><td>Go</td><td>串口、AT命令、URC监听</td></tr><tr><td>Call Manager</td><td>Go</td><td>电话状态机</td></tr><tr><td>Audio Manager</td><td>Go / ALSA</td><td>EG25-G UAC音频</td></tr><tr><td>Browser Audio</td><td>WebRTC</td><td>浏览器麦克风和扬声器</td></tr><tr><td>Database</td><td>SQLite</td><td>通话记录、设备配置</td></tr></tbody></table>
+<p>和原网关架构非常接近，继续用 Go Daemon + Next.js 是合适的。</p>
+<h2 id="6-7">6.7 音频的两种第一版</h2>
+<table><thead><tr><th>方案</th><th>实现</th><th>难度</th><th>推荐</th></tr></thead><tbody><tr><td>A. 本机耳机版</td><td>Linux主机直接接耳机/麦克风，Web只控制电话</td><td>低</td><td>先验证</td></tr><tr><td>B. 浏览器电话版</td><td>Browser Mic/Speaker ↔ WebRTC ↔ Linux ↔ UAC ↔ EG25-G</td><td>中高</td><td>最终目标</td></tr></tbody></table>
+<p>真正想要的是：浏览器 → 点击拨号 → 对方接听 → 直接对着电脑 / 手机浏览器讲话。这样设备可以放在别的房间甚至另一个国家。</p>
+<h2 id="6-8-4">6.8 下一步先做 4 个模块</h2>
+<table><thead><tr><th>优先级</th><th>开发模块</th><th>第一版验收标准</th></tr></thead><tbody><tr><td>P0</td><td>ModemService</td><td>程序自动控制 COM/ttyUSB，不需要 SSCOM</td></tr><tr><td>P0</td><td>CallManager</td><td>拨号 / 接听 / 拒接 / 挂断 / CLCC 全自动</td></tr><tr><td>P0</td><td>Web Phone UI</td><td>浏览器有拨号盘和来电弹窗</td></tr><tr><td>P1</td><td>AudioService</td><td>UAC 音频能够送进浏览器/从浏览器送回模块</td></tr></tbody></table>
+<p>先做 4 个模块后，就能得到一个 Web 版 EG25-G 电话机：拨号、来电自动弹窗、接听、拒接、挂断，并通过浏览器说话和听电话。Asterisk / SIP 放到第二阶段。</p></article>
+      <footer class="footer">Generated from Feishu content. Review visibility before sharing public links.</footer>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
